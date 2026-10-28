@@ -295,14 +295,87 @@ function save(){if(!DL){say('Downloads are not available in this view. Use Copy 
 $('#dl').onclick=save;$('#dl2').onclick=save;
 $('#copy').onclick=function(){var b=this;(navigator.clipboard?navigator.clipboard.writeText(gen()):Promise.reject()).then(function(){b.textContent='Copied!';setTimeout(function(){b.textContent='Copy code'},1800)},function(){b.textContent='Copy blocked';setTimeout(function(){b.textContent='Copy code'},1800)})};
 /* capabilities */
-if(window.claude&&claude.use){
- claude.use('downloads').then(function(x){DL=x},function(){});
- claude.use('sample').then(function(S){if(!S)return;var b=$('#ai');b.hidden=false;b.onclick=function(){if(Date.now()-aiLast<20000){say('Please wait a few seconds before asking the AI again.','e');slog('AI writer throttled');return}aiLast=Date.now();
-  var nm=d.name||'a small business',tp=$('[data-k=type] option:checked').textContent;b.disabled=true;b.textContent='Writing…';
-  S.json('Write website text for a business called "'+nm+'" (type: '+tp+'). Reply with ONLY JSON: {"tagline":"max 8 words","about":"two friendly sentences","items":[{"name":"","desc":"one short sentence","price":""}]} with 5 items for '+PR[d.type].lab.toLowerCase()+'. Leave price empty unless it is natural; never invent currency symbols.').then(function(r){
-   var sx=function(v,n){return typeof v==='string'?clip(v.replace(/[<>|]/g,' '),n):''};d.tag=sx(r.tagline,LIM.tag)||d.tag;d.about=sx(r.about,LIM.about)||d.about;if(Array.isArray(r.items)&&r.items.length)d.items=clip(r.items.slice(0,8).map(function(x){x=x||{};return [sx(x.name,60),sx(x.desc,120),sx(x.price,20)].join(' | ')}).join('\n'),LIM.items);
-   $$('[data-k]').forEach(function(el){el.value=d[el.dataset.k]||''});render()}).catch(function(){say('The AI writer is not available right now. You can type your own text.','e')}).then(function(){b.disabled=false;b.textContent='✦ Write the text for me'})}},function(){})}
+if (window.claude && window.claude.use) {
+  claude.use('downloads').then(function(x) {
+    DL = x;
+  }, function() {});
+}
 
+(function() {
+  var b = $('#ai');
+  if (!b) return;
+
+  b.hidden = false;
+
+  b.onclick = async function() {
+    if (Date.now() - aiLast < 20000) {
+      say('Please wait a few seconds before asking the AI again.', 'e');
+      return;
+    }
+
+    aiLast = Date.now();
+    var nm = d.name || 'a small business';
+    var tp = $('[data-k=type] option:checked').textContent;
+
+    b.disabled = true;
+    b.textContent = 'Writing…';
+
+    try {
+      var prompt =
+        'Write website text for a business called "' + nm +
+        '" (type: ' + tp + '). Reply with ONLY valid JSON: ' +
+        '{"tagline":"max 8 words","about":"two friendly sentences",' +
+        '"items":[{"name":"","desc":"one short sentence","price":""}]}. ' +
+        'Include 5 suitable items. Leave prices empty unless appropriate.';
+
+      var raw = await window.askWhubAI(prompt);
+      var cleaned = String(raw)
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '');
+
+      var r = JSON.parse(cleaned);
+
+      var sx = function(v, n) {
+        return typeof v === 'string'
+          ? clip(v.replace(/[<>|]/g, ' '), n)
+          : '';
+      };
+
+      d.tag = sx(r.tagline, LIM.tag) || d.tag;
+      d.about = sx(r.about, LIM.about) || d.about;
+
+      if (Array.isArray(r.items) && r.items.length) {
+        d.items = clip(
+          r.items.slice(0, 8).map(function(x) {
+            x = x || {};
+            return [
+              sx(x.name, 60),
+              sx(x.desc, 120),
+              sx(x.price, 20)
+            ].join(' | ');
+          }).join('\n'),
+          LIM.items
+        );
+      }
+
+      $$('[data-k]').forEach(function(el) {
+        el.value = d[el.dataset.k] || '';
+      });
+
+      render();
+      say('AI text added to your website!', 'o');
+
+    } catch (e) {
+      say(
+        'AI writing failed. Check your connection and try again.',
+        'e'
+      );
+    } finally {
+      b.disabled = false;
+      b.textContent = '✦ Write the text for me';
+    }
+  };
+})();
 var dg=$('#nav'),op=null;$('#mn').onclick=function(){op=document.activeElement;document.body.classList.add('lock');dg.showModal()};
 function cn(){dg.close()}$('#cl').onclick=cn;dg.addEventListener('close',function(){document.body.classList.remove('lock');if(op&&op.focus)op.focus()});
 var PGS=[].slice.call(document.querySelectorAll('.page')),NA=[].slice.call(document.querySelectorAll('.cap a')),WE='hello@yourdomain.com';
