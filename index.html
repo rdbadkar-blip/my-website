@@ -431,5 +431,55 @@ lab();mark();th();pf.srcdoc=gen();
     });
   }
 </script>
+<script>
+  const WHUB_AI_ENDPOINT =
+    "https://throbbing-art-55a0whub-ai-backend.rdbadkar.workers.dev/api/ai";
+
+  async function callWhubAI(mode, prompt, siteContent = "") {
+    const response = await fetch(WHUB_AI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        mode,
+        prompt,
+        siteContent
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Whub AI request failed.");
+    }
+
+    return data.reply;
+  }
+
+  // Use this for the Whub AI chatbot.
+  window.askWhubAI = function (question) {
+    return callWhubAI("chat", question);
+  };
+
+  // Use this for the AI website generator.
+  window.generateWhubWebsite = async function (description) {
+    const result = await callWhubAI("generate", description);
+    return JSON.parse(result);
+  };
+
+  // Use this to improve existing website content.
+  window.improveWhubWebsite = async function (request, currentContent) {
+    const result = await callWhubAI(
+      "improve",
+      request,
+      currentContent
+    );
+    return JSON.parse(result);
+  };
+</script>
+</body>
+</html>
+
 </body>
 </html>
